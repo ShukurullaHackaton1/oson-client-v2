@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { FaChartBar, FaUserMd, FaTruck } from "react-icons/fa";
+import { Logo } from "../../public";
 
 const Sidebar = () => {
   const location = useLocation();
@@ -13,7 +14,9 @@ const Sidebar = () => {
   return (
     <div className="bg-gradient-to-b relative from-blue-900 to-blue-800 w-64 min-h-screen shadow-xl">
       <div className="p-6">
-        <h2 className="text-xl font-bold text-white">🏥 Аптека Система</h2>
+        <h2 className="text-xl font-bold flex items-center gap-2 text-white">
+          <span>Аптека Система</span>
+        </h2>
         <p className="text-blue-200 text-sm mt-1">Управление данными</p>
       </div>
       <nav className="mt-6">

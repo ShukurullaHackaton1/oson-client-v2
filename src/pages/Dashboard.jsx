@@ -12,7 +12,6 @@ import {
   FaArrowUp,
   FaArrowDown,
   FaWifi,
-  FaWifiSlash,
 } from "react-icons/fa";
 import api from "../services/api";
 import toast from "react-hot-toast";
@@ -63,7 +62,6 @@ const Dashboard = () => {
       // Background refresh trigger qilish
       try {
         await api.post("/background/manual-refresh");
-        toast.success("Manual refresh boshlandi");
       } catch (error) {
         console.log("Background refresh mavjud emas");
       }
@@ -75,7 +73,7 @@ const Dashboard = () => {
       }, 3000);
     } catch (error) {
       console.error("Manual refresh xatosi:", error);
-      toast.error("Refresh da xatolik");
+
       setRefreshing(false);
     }
   };
@@ -110,7 +108,7 @@ const Dashboard = () => {
     return (
       <div className="flex justify-center items-center h-96">
         <div className="text-center">
-          <FaWifiSlash className="mx-auto text-4xl text-red-500 mb-4" />
+          <FaWifi className="mx-auto text-4xl text-red-500 mb-4" />
           <h2 className="text-xl font-bold text-gray-900 mb-2">
             Ошибка подключения
           </h2>
@@ -210,7 +208,7 @@ const Dashboard = () => {
                   : "text-red-600"
               }`}
             >
-              {connectionStatus === "connected" ? <FaWifi /> : <FaWifiSlash />}
+              {connectionStatus === "connected" ? <FaWifi /> : <FaWifi />}
               <span className="ml-1 text-xs">
                 {connectionStatus === "connected"
                   ? "Подключено"
