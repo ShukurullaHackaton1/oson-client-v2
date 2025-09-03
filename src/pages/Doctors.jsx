@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   fetchDoctors,
   createDoctor,
+  updateDoctor,
   deleteDoctor,
 } from "../store/slices/doctorsSlice";
 import {
@@ -36,6 +37,7 @@ import {
   FaSquare,
   FaCheckCircle,
   FaClock,
+  FaEdit,
 } from "react-icons/fa";
 import toast from "react-hot-toast";
 import api from "../services/api";
@@ -52,6 +54,8 @@ const Doctors = () => {
   } = useSelector((state) => state.messages);
 
   const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingDoctor, setEditingDoctor] = useState(null);
   const [showSales, setShowSales] = useState(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [showMessagesHistory, setShowMessagesHistory] = useState(null);
@@ -66,6 +70,14 @@ const Doctors = () => {
   const [messageContent, setMessageContent] = useState("");
 
   const [formData, setFormData] = useState({
+    name: "",
+    profession: "",
+    login: "",
+    password: "",
+    code: "",
+  });
+
+  const [editFormData, setEditFormData] = useState({
     name: "",
     profession: "",
     login: "",
@@ -112,6 +124,50 @@ const Doctors = () => {
     } catch (error) {
       toast.error("Ошибка добавления врача");
     }
+  };
+
+  const handleEditSubmit = async (e) => {
+    if (e) e.preventDefault();
+
+    // Validation
+    if (
+      !editFormData.name ||
+      !editFormData.profession ||
+      !editFormData.login ||
+      !editFormData.password ||
+      !editFormData.code
+    ) {
+      toast.error("Заполните все поля");
+      return;
+    }
+
+    try {
+      await dispatch(updateDoctor({ id: editingDoctor._id, data: editFormData })).unwrap();
+      setShowEditModal(false);
+      setEditingDoctor(null);
+      setEditFormData({
+        name: "",
+        profession: "",
+        login: "",
+        password: "",
+        code: "",
+      });
+      toast.success("Врач обновлен");
+    } catch (error) {
+      toast.error("Ошибка обновления врача");
+    }
+  };
+
+  const handleEdit = (doctor) => {
+    setEditingDoctor(doctor);
+    setEditFormData({
+      name: doctor.name,
+      profession: doctor.profession,
+      login: doctor.login,
+      password: doctor.password,
+      code: doctor.code,
+    });
+    setShowEditModal(true);
   };
 
   const handleDelete = async (id) => {
@@ -408,6 +464,14 @@ const Doctors = () => {
                             </button>
 
                             <button
+                              onClick={() => handleEdit(doctor)}
+                              className="flex items-center bg-green-100 text-green-700 px-3 py-2 rounded-lg hover:bg-green-200 transition-colors"
+                            >
+                              <FaEdit className="mr-1" />
+                              Изменить
+                            </button>
+
+                            <button
                               onClick={() => handleDelete(doctor._id)}
                               className="flex items-center bg-red-100 text-red-700 px-3 py-2 rounded-lg hover:bg-red-200 transition-colors"
                             >
@@ -517,11 +581,10 @@ const Doctors = () => {
         </div>
       )}
 
-      {/* Enhanced Sales Modal */}
+      {/* Sales Modal remains the same */}
       {showSales && (
         <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-4 mx-auto p-6 border-0 max-w-6xl shadow-2xl rounded-2xl bg-white m-4">
-            {/* Modal Header */}
             <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
               <div className="flex items-center">
                 <div className="h-12 w-12 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center mr-4">
@@ -544,7 +607,6 @@ const Doctors = () => {
               </button>
             </div>
 
-            {/* Sales Content */}
             <div className="max-h-96 overflow-y-auto">
               {salesLoading ? (
                 <div className="flex justify-center items-center h-32">
@@ -560,7 +622,6 @@ const Doctors = () => {
                 <div className="space-y-4">
                   {groupSalesByCheck(sales).map((checkGroup, checkIndex) => (
                     <div key={checkIndex} className="bg-gray-50 rounded-xl p-5">
-                      {/* Check Header */}
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center">
                           <FaReceipt className="text-blue-600 mr-3 text-lg" />
@@ -587,7 +648,6 @@ const Doctors = () => {
                         </div>
                       </div>
 
-                      {/* Items in Check */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {checkGroup.items.map((item, itemIndex) => (
                           <div
@@ -635,7 +695,6 @@ const Doctors = () => {
               )}
             </div>
 
-            {/* Modal Footer */}
             <div className="mt-6 pt-4 border-t border-gray-200">
               <div className="flex justify-between items-center">
                 <div className="text-sm text-gray-500">
@@ -654,280 +713,8 @@ const Doctors = () => {
         </div>
       )}
 
-      {/* Message Modal */}
-      {showMessageModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-4 mx-auto p-6 border-0 max-w-4xl shadow-2xl rounded-2xl bg-white m-4">
-            {/* Modal Header */}
-            <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
-              <div className="flex items-center">
-                <div className="h-12 w-12 rounded-full bg-gradient-to-r from-green-500 to-green-600 flex items-center justify-center mr-4">
-                  <FaPaperPlane className="text-white text-lg" />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900">
-                    Отправить сообщение врачам
-                  </h3>
-                  <p className="text-gray-600">
-                    Выберите получателей и введите текст
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setShowMessageModal(false);
-                  setSelectedDoctors([]);
-                  setSelectAll(false);
-                  setMessageContent("");
-                }}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full"
-              >
-                <FaTimes className="text-xl" />
-              </button>
-            </div>
-
-            {/* Step 1: Doctor Selection */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-lg font-semibold text-gray-900 flex items-center">
-                  <FaUsers className="mr-2 text-blue-600" />
-                  Выберите получателей
-                </h4>
-                <div className="flex items-center">
-                  <button
-                    onClick={toggleSelectAll}
-                    className="flex items-center text-blue-600 hover:text-blue-800 font-medium"
-                  >
-                    {selectAll ? (
-                      <FaCheckSquare className="mr-1" />
-                    ) : (
-                      <FaSquare className="mr-1" />
-                    )}
-                    Выбрать всех ({doctorsForMessaging.length})
-                  </button>
-                </div>
-              </div>
-
-              {doctorsForMessaging.length === 0 ? (
-                <div className="text-center py-8">
-                  <FaUsers className="mx-auto text-3xl text-gray-400 mb-3" />
-                  <p className="text-gray-500">Врачи не найдены</p>
-                </div>
-              ) : (
-                doctors.map((doctor) => (
-                  <div
-                    key={doctor._id}
-                    className={`flex items-center p-3 rounded-lg cursor-pointer transition-all ${
-                      selectedDoctors.includes(doctor._id)
-                        ? "bg-blue-100 border-2 border-blue-300"
-                        : "bg-white border-2 border-gray-200 hover:border-blue-200"
-                    }`}
-                    onClick={() => toggleDoctorSelection(doctor._id)}
-                  >
-                    <div className="flex items-center flex-1">
-                      <div
-                        className={`w-5 h-5 rounded border-2 mr-3 flex items-center justify-center ${
-                          selectedDoctors.includes(doctor._id)
-                            ? "bg-blue-600 border-blue-600"
-                            : "border-gray-300"
-                        }`}
-                      >
-                        {selectedDoctors.includes(doctor._id) && (
-                          <FaCheck className="text-white text-xs" />
-                        )}
-                      </div>
-                      <div className="flex items-center flex-1">
-                        <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 flex items-center justify-center mr-3">
-                          <FaUser className="text-white text-xs" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-900 text-sm">
-                            {doctor.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {doctor.profession}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center ml-2">
-                        {doctor.hasTelegram ? (
-                          <FaTelegramPlane
-                            className="text-green-600"
-                            title="Telegram подключен"
-                          />
-                        ) : (
-                          <FaTelegramPlane
-                            className="text-gray-400"
-                            title="Telegram не подключен"
-                          />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-
-              {selectedDoctors.length > 0 && (
-                <div className="mt-3 text-sm text-blue-600 font-medium">
-                  Выбрано: {selectedDoctors.length} врачей
-                </div>
-              )}
-            </div>
-
-            {/* Step 2: Message Content */}
-            {selectedDoctors.length > 0 && (
-              <div className="mb-6">
-                <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
-                  <FaEnvelope className="mr-2 text-green-600" />
-                  Текст сообщения
-                </h4>
-                <textarea
-                  value={messageContent}
-                  onChange={(e) => setMessageContent(e.target.value)}
-                  placeholder="Введите текст сообщения для врачей..."
-                  rows={4}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
-                />
-                <div className="mt-2 text-right text-xs text-gray-500">
-                  {messageContent.length}/1000 символов
-                </div>
-              </div>
-            )}
-
-            {/* Modal Footer */}
-            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-              <button
-                onClick={() => {
-                  setShowMessageModal(false);
-                  setSelectedDoctors([]);
-                  setSelectAll(false);
-                  setMessageContent("");
-                }}
-                className="px-6 py-3 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={sendMessage}
-                disabled={
-                  isSending ||
-                  selectedDoctors.length === 0 ||
-                  !messageContent.trim()
-                }
-                className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-green-600 to-green-700 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSending ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 inline-block"></div>
-                    Отправка...
-                  </>
-                ) : (
-                  <>
-                    <FaPaperPlane className="mr-2 inline" />
-                    Отправить ({selectedDoctors.length})
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Messages History Modal */}
-      {showMessagesHistory && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-4 mx-auto p-6 border-0 max-w-4xl shadow-2xl rounded-2xl bg-white m-4">
-            {/* Modal Header */}
-            <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
-              <div className="flex items-center">
-                <div className="h-12 w-12 rounded-full bg-gradient-to-r from-green-500 to-green-600 flex items-center justify-center mr-4">
-                  <FaInbox className="text-white text-lg" />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900">
-                    История сообщений
-                  </h3>
-                  <p className="text-gray-600">
-                    {showMessagesHistory.name} •{" "}
-                    {showMessagesHistory.profession}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowMessagesHistory(null)}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full"
-              >
-                <FaTimes className="text-xl" />
-              </button>
-            </div>
-
-            <div className="max-h-96 overflow-y-auto">
-              {messagesLoading ? (
-                <div className="flex justify-center items-center h-32">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-                  <span className="ml-3 text-gray-600">
-                    Загрузка сообщений...
-                  </span>
-                </div>
-              ) : doctorMessages.length === 0 ? (
-                <>
-                  <div className="text-center py-12">
-                    <FaInbox className="mx-auto text-4xl text-gray-400 mb-4" />
-                    <p className="text-gray-500 text-lg">
-                      Сообщения не найдены
-                    </p>
-                  </div>
-                  {doctorMessages.map((message) => (
-                    <div
-                      key={message._id}
-                      className="bg-gray-50 rounded-xl p-5"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center text-sm text-gray-600">
-                          <FaEnvelope className="mr-2" />
-                          <span>
-                            {new Date(message.createdAt).toLocaleString(
-                              "ru-RU"
-                            )}
-                          </span>
-                        </div>
-                        <div className="flex items-center">
-                          {message.deliveryInfo?.delivered ? (
-                            <div className="flex items-center text-green-600">
-                              <FaCheckCircle className="mr-1" />
-                              <span className="text-xs">Доставлено</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center text-gray-500">
-                              <FaClock className="mr-1" />
-                              <span className="text-xs">Не доставлено</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="bg-white rounded-lg p-4 border border-gray-200">
-                        <p className="text-gray-900">{message.content}</p>
-                      </div>
-                    </div>
-                  ))}
-                </>
-              ) : (
-                ""
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="mt-6 pt-4 border-t border-gray-200">
-              <button
-                onClick={() => setShowMessagesHistory(null)}
-                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
-              >
-                Закрыть
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Message Modal and Messages History Modal remain the same */}
+      {/* ... (keeping all other existing modals) ... */}
 
       {/* Add Doctor Modal */}
       {showModal && (
@@ -941,7 +728,7 @@ const Doctors = () => {
                 Добавить врача
               </h3>
             </div>
-            <form>
+            <form onSubmit={handleSubmit}>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1036,11 +823,7 @@ const Doctors = () => {
                     Отмена
                   </button>
                   <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleSubmit(e);
-                    }}
+                    type="submit"
                     className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg"
                   >
                     <FaPlus className="mr-2 inline" />
@@ -1048,40 +831,405 @@ const Doctors = () => {
                   </button>
                 </div>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Специальный код
-                </label>
-                <input
-                  type="text"
-                  placeholder="Уникальный код врача"
-                  value={formData.code}
-                  onChange={(e) =>
-                    setFormData({ ...formData, code: e.target.value })
-                  }
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                  required
-                />
+      {/* Edit Doctor Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-6 border-0 w-96 shadow-2xl rounded-2xl bg-white">
+            <div className="flex items-center mb-6">
+              <div className="h-10 w-10 rounded-full bg-gradient-to-r from-green-500 to-green-600 flex items-center justify-center mr-3">
+                <FaEdit className="text-white" />
               </div>
+              <h3 className="text-xl font-bold text-gray-900">
+                Изменить врача
+              </h3>
+            </div>
+            <form onSubmit={handleEditSubmit}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <FaUser className="inline mr-2" />
+                    Имя врача
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Введите имя"
+                    value={editFormData.name}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, name: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+                    required
+                  />
+                </div>
 
-              <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-6 py-3 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  Отмена
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg"
-                >
-                  <FaPlus className="mr-2 inline" />
-                  Добавить
-                </button>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <FaStethoscope className="inline mr-2" />
+                    Профессия
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Например: Кардиолог"
+                    value={editFormData.profession}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, profession: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <FaIdCard className="inline mr-2" />
+                    Логин
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Логин для входа"
+                    value={editFormData.login}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, login: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <FaKey className="inline mr-2" />
+                    Пароль
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="Введите пароль"
+                    value={editFormData.password}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, password: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Специальный код
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Уникальный код врача"
+                    value={editFormData.code}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, code: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+                    required
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setEditingDoctor(null);
+                      setEditFormData({
+                        name: "",
+                        profession: "",
+                        login: "",
+                        password: "",
+                        code: "",
+                      });
+                    }}
+                    className="px-6 py-3 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-green-600 to-green-700 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-lg"
+                  >
+                    <FaEdit className="mr-2 inline" />
+                    Сохранить
+                  </button>
+                </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Message Modal */}
+      {showMessageModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-4 mx-auto p-6 border-0 max-w-4xl shadow-2xl rounded-2xl bg-white m-4">
+            <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+              <div className="flex items-center">
+                <div className="h-12 w-12 rounded-full bg-gradient-to-r from-green-500 to-green-600 flex items-center justify-center mr-4">
+                  <FaPaperPlane className="text-white text-lg" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900">
+                    Отправить сообщение врачам
+                  </h3>
+                  <p className="text-gray-600">
+                    Выберите получателей и введите текст
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowMessageModal(false);
+                  setSelectedDoctors([]);
+                  setSelectAll(false);
+                  setMessageContent("");
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full"
+              >
+                <FaTimes className="text-xl" />
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-lg font-semibold text-gray-900 flex items-center">
+                  <FaUsers className="mr-2 text-blue-600" />
+                  Выберите получателей
+                </h4>
+                <div className="flex items-center">
+                  <button
+                    onClick={toggleSelectAll}
+                    className="flex items-center text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    {selectAll ? (
+                      <FaCheckSquare className="mr-1" />
+                    ) : (
+                      <FaSquare className="mr-1" />
+                    )}
+                    Выбрать всех ({doctorsForMessaging.length})
+                  </button>
+                </div>
+              </div>
+
+              {doctorsForMessaging.length === 0 ? (
+                <div className="text-center py-8">
+                  <FaUsers className="mx-auto text-3xl text-gray-400 mb-3" />
+                  <p className="text-gray-500">Врачи не найдены</p>
+                </div>
+              ) : (
+                doctors.map((doctor) => (
+                  <div
+                    key={doctor._id}
+                    className={`flex items-center p-3 rounded-lg cursor-pointer transition-all ${
+                      selectedDoctors.includes(doctor._id)
+                        ? "bg-blue-100 border-2 border-blue-300"
+                        : "bg-white border-2 border-gray-200 hover:border-blue-200"
+                    }`}
+                    onClick={() => toggleDoctorSelection(doctor._id)}
+                  >
+                    <div className="flex items-center flex-1">
+                      <div
+                        className={`w-5 h-5 rounded border-2 mr-3 flex items-center justify-center ${
+                          selectedDoctors.includes(doctor._id)
+                            ? "bg-blue-600 border-blue-600"
+                            : "border-gray-300"
+                        }`}
+                      >
+                        {selectedDoctors.includes(doctor._id) && (
+                          <FaCheck className="text-white text-xs" />
+                        )}
+                      </div>
+                      <div className="flex items-center flex-1">
+                        <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 flex items-center justify-center mr-3">
+                          <FaUser className="text-white text-xs" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900 text-sm">
+                            {doctor.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {doctor.profession}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center ml-2">
+                        {doctor.hasTelegram ? (
+                          <FaTelegramPlane
+                            className="text-green-600"
+                            title="Telegram подключен"
+                          />
+                        ) : (
+                          <FaTelegramPlane
+                            className="text-gray-400"
+                            title="Telegram не подключен"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+
+              {selectedDoctors.length > 0 && (
+                <div className="mt-3 text-sm text-blue-600 font-medium">
+                  Выбрано: {selectedDoctors.length} врачей
+                </div>
+              )}
+            </div>
+
+            {selectedDoctors.length > 0 && (
+              <div className="mb-6">
+                <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                  <FaEnvelope className="mr-2 text-green-600" />
+                  Текст сообщения
+                </h4>
+                <textarea
+                  value={messageContent}
+                  onChange={(e) => setMessageContent(e.target.value)}
+                  placeholder="Введите текст сообщения для врачей..."
+                  rows={4}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+                />
+                <div className="mt-2 text-right text-xs text-gray-500">
+                  {messageContent.length}/1000 символов
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowMessageModal(false);
+                  setSelectedDoctors([]);
+                  setSelectAll(false);
+                  setMessageContent("");
+                }}
+                className="px-6 py-3 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={sendMessage}
+                disabled={
+                  isSending ||
+                  selectedDoctors.length === 0 ||
+                  !messageContent.trim()
+                }
+                className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-green-600 to-green-700 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSending ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 inline-block"></div>
+                    Отправка...
+                  </>
+                ) : (
+                  <>
+                    <FaPaperPlane className="mr-2 inline" />
+                    Отправить ({selectedDoctors.length})
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Messages History Modal */}
+      {showMessagesHistory && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-4 mx-auto p-6 border-0 max-w-4xl shadow-2xl rounded-2xl bg-white m-4">
+            <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+              <div className="flex items-center">
+                <div className="h-12 w-12 rounded-full bg-gradient-to-r from-green-500 to-green-600 flex items-center justify-center mr-4">
+                  <FaInbox className="text-white text-lg" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900">
+                    История сообщений
+                  </h3>
+                  <p className="text-gray-600">
+                    {showMessagesHistory.name} •{" "}
+                    {showMessagesHistory.profession}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowMessagesHistory(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full"
+              >
+                <FaTimes className="text-xl" />
+              </button>
+            </div>
+
+            <div className="max-h-96 overflow-y-auto">
+              {messagesLoading ? (
+                <div className="flex justify-center items-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                  <span className="ml-3 text-gray-600">
+                    Загрузка сообщений...
+                  </span>
+                </div>
+              ) : doctorMessages.length === 0 ? (
+                <div className="text-center py-12">
+                  <FaInbox className="mx-auto text-4xl text-gray-400 mb-4" />
+                  <p className="text-gray-500 text-lg">
+                    Сообщения не найдены
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {doctorMessages.map((message) => (
+                    <div
+                      key={message._id}
+                      className="bg-gray-50 rounded-xl p-5"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center text-sm text-gray-600">
+                          <FaEnvelope className="mr-2" />
+                          <span>
+                            {new Date(message.createdAt).toLocaleString(
+                              "ru-RU"
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex items-center">
+                          {message.deliveryInfo?.delivered ? (
+                            <div className="flex items-center text-green-600">
+                              <FaCheckCircle className="mr-1" />
+                              <span className="text-xs">Доставлено</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center text-gray-500">
+                              <FaClock className="mr-1" />
+                              <span className="text-xs">Не доставлено</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="bg-white rounded-lg p-4 border border-gray-200">
+                        <p className="text-gray-900">{message.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <button
+                onClick={() => setShowMessagesHistory(null)}
+                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                Закрыть
+              </button>
+            </div>
           </div>
         </div>
       )}

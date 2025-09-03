@@ -1,24 +1,32 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../../services/api.js';
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import api from "../../services/api.js";
 
 export const fetchDoctors = createAsyncThunk(
-  'doctors/fetchDoctors',
+  "doctors/fetchDoctors",
   async () => {
-    const response = await api.get('/doctors');
+    const response = await api.get("/doctors");
     return response.data.data;
   }
 );
 
 export const createDoctor = createAsyncThunk(
-  'doctors/createDoctor',
+  "doctors/createDoctor",
   async (doctorData) => {
-    const response = await api.post('/doctors', doctorData);
+    const response = await api.post("/doctors", doctorData);
+    return response.data.data;
+  }
+);
+
+export const updateDoctor = createAsyncThunk(
+  "doctors/updateDoctor",
+  async ({ id, data }) => {
+    const response = await api.put(`/doctors/${id}`, data);
     return response.data.data;
   }
 );
 
 export const deleteDoctor = createAsyncThunk(
-  'doctors/deleteDoctor',
+  "doctors/deleteDoctor",
   async (id) => {
     await api.delete(`/doctors/${id}`);
     return id;
@@ -26,7 +34,7 @@ export const deleteDoctor = createAsyncThunk(
 );
 
 const doctorsSlice = createSlice({
-  name: 'doctors',
+  name: "doctors",
   initialState: {
     doctors: [],
     isLoading: false,
@@ -53,8 +61,18 @@ const doctorsSlice = createSlice({
       .addCase(createDoctor.fulfilled, (state, action) => {
         state.doctors.unshift(action.payload);
       })
+      .addCase(updateDoctor.fulfilled, (state, action) => {
+        const index = state.doctors.findIndex(
+          (doctor) => doctor._id === action.payload._id
+        );
+        if (index !== -1) {
+          state.doctors[index] = action.payload;
+        }
+      })
       .addCase(deleteDoctor.fulfilled, (state, action) => {
-        state.doctors = state.doctors.filter(doctor => doctor._id !== action.payload);
+        state.doctors = state.doctors.filter(
+          (doctor) => doctor._id !== action.payload
+        );
       });
   },
 });

@@ -1,32 +1,56 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../../services/api.js';
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import api from "../../services/api.js";
 
 export const fetchSuppliers = createAsyncThunk(
-  'suppliers/fetchSuppliers',
+  "suppliers/fetchSuppliers",
   async () => {
-    const response = await api.get('/suppliers');
+    const response = await api.get("/suppliers");
     return response.data.data;
   }
 );
 
 export const fetchAvailableSuppliers = createAsyncThunk(
-  'suppliers/fetchAvailableSuppliers',
+  "suppliers/fetchAvailableSuppliers",
   async () => {
-    const response = await api.get('/suppliers/available');
+    const response = await api.get("/suppliers/available");
     return response.data.data;
   }
 );
 
 export const createSupplier = createAsyncThunk(
-  'suppliers/createSupplier',
+  "suppliers/createSupplier",
   async (supplierData) => {
-    const response = await api.post('/suppliers', supplierData);
+    const response = await api.post("/suppliers", supplierData);
+    return response.data.data;
+  }
+);
+
+export const updateSupplier = createAsyncThunk(
+  "suppliers/updateSupplier",
+  async ({ id, data }) => {
+    const response = await api.put(`/suppliers/${id}`, data);
+    return response.data.data;
+  }
+);
+
+export const deactivateSupplier = createAsyncThunk(
+  "suppliers/deactivateSupplier",
+  async (id) => {
+    const response = await api.put(`/suppliers/${id}/deactivate`);
+    return response.data.data;
+  }
+);
+
+export const activateSupplier = createAsyncThunk(
+  "suppliers/activateSupplier",
+  async (id) => {
+    const response = await api.put(`/suppliers/${id}/activate`);
     return response.data.data;
   }
 );
 
 const suppliersSlice = createSlice({
-  name: 'suppliers',
+  name: "suppliers",
   initialState: {
     suppliers: [],
     availableSuppliers: [],
@@ -52,6 +76,30 @@ const suppliersSlice = createSlice({
       })
       .addCase(createSupplier.fulfilled, (state, action) => {
         state.suppliers.unshift(action.payload);
+      })
+      .addCase(updateSupplier.fulfilled, (state, action) => {
+        const index = state.suppliers.findIndex(
+          (supplier) => supplier._id === action.payload._id
+        );
+        if (index !== -1) {
+          state.suppliers[index] = action.payload;
+        }
+      })
+      .addCase(deactivateSupplier.fulfilled, (state, action) => {
+        const index = state.suppliers.findIndex(
+          (supplier) => supplier._id === action.payload._id
+        );
+        if (index !== -1) {
+          state.suppliers[index] = action.payload;
+        }
+      })
+      .addCase(activateSupplier.fulfilled, (state, action) => {
+        const index = state.suppliers.findIndex(
+          (supplier) => supplier._id === action.payload._id
+        );
+        if (index !== -1) {
+          state.suppliers[index] = action.payload;
+        }
       });
   },
 });

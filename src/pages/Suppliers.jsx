@@ -4,6 +4,9 @@ import {
   fetchSuppliers,
   fetchAvailableSuppliers,
   createSupplier,
+  updateSupplier,
+  deactivateSupplier,
+  activateSupplier,
 } from "../store/slices/suppliersSlice";
 import {
   FaPlus,
@@ -19,6 +22,9 @@ import {
   FaIndustry,
   FaBarcode,
   FaClock,
+  FaEdit,
+  FaBan,
+  FaPlay,
 } from "react-icons/fa";
 import toast from "react-hot-toast";
 import api from "../services/api";
@@ -29,11 +35,19 @@ const Suppliers = () => {
     (state) => state.suppliers
   );
   const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState(null);
   const [showRemains, setShowRemains] = useState(null);
   const [remains, setRemains] = useState([]);
   const [remainsLoading, setRemainsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("available");
   const [formData, setFormData] = useState({
+    name: "",
+    username: "",
+    password: "",
+  });
+
+  const [editFormData, setEditFormData] = useState({
     name: "",
     username: "",
     password: "",
@@ -53,6 +67,65 @@ const Suppliers = () => {
       toast.success("Поставщик добавлен");
     } catch (error) {
       toast.error("Ошибка добавления поставщика");
+    }
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+
+    if (
+      !editFormData.name ||
+      !editFormData.username ||
+      !editFormData.password
+    ) {
+      toast.error("Заполните все поля");
+      return;
+    }
+
+    try {
+      await dispatch(
+        updateSupplier({ id: editingSupplier._id, data: editFormData })
+      ).unwrap();
+      setShowEditModal(false);
+      setEditingSupplier(null);
+      setEditFormData({ name: "", username: "", password: "" });
+      toast.success("Поставщик обновлен");
+    } catch (error) {
+      toast.error("Ошибка обновления поставщика");
+    }
+  };
+
+  const handleEdit = (supplier) => {
+    setEditingSupplier(supplier);
+    setEditFormData({
+      name: supplier.name,
+      username: supplier.username,
+      password: supplier.password,
+    });
+    setShowEditModal(true);
+  };
+
+  const handleDeactivate = async (id) => {
+    if (
+      window.confirm("Деактивировать поставщика? Он не сможет войти в систему.")
+    ) {
+      try {
+        await dispatch(deactivateSupplier(id)).unwrap();
+        toast.success("Поставщик деактивирован");
+      } catch (error) {
+        toast.error("Ошибка деактивации поставщика");
+      }
+    }
+  };
+
+  const handleActivate = async (id) => {
+    if (window.confirm("Активировать поставщика?")) {
+      try {
+        await dispatch(activateSupplier(id)).unwrap();
+        toast.success("Поставщик активирован");
+      } catch (error) {
+        toast.error("Ошибка активации поставщика");
+      }
     }
   };
 
@@ -290,12 +363,24 @@ const Suppliers = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10">
-                            <div className="h-10 w-10 rounded-full bg-gradient-to-r from-orange-400 to-orange-600 flex items-center justify-center">
+                            <div
+                              className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                                supplier.isActive
+                                  ? "bg-gradient-to-r from-orange-400 to-orange-600"
+                                  : "bg-gradient-to-r from-gray-400 to-gray-600"
+                              }`}
+                            >
                               <FaBuilding className="text-white text-sm" />
                             </div>
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-bold text-gray-900">
+                            <div
+                              className={`text-sm font-bold ${
+                                supplier.isActive
+                                  ? "text-gray-900"
+                                  : "text-gray-500"
+                              }`}
+                            >
                               {supplier.name}
                             </div>
                             <div className="text-xs text-gray-500">
@@ -305,7 +390,13 @@ const Suppliers = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <code className="bg-gray-100 px-3 py-1 rounded text-sm font-medium">
+                        <code
+                          className={`px-3 py-1 rounded text-sm font-medium ${
+                            supplier.isActive
+                              ? "bg-gray-100"
+                              : "bg-gray-50 text-gray-500"
+                          }`}
+                        >
                           {supplier.username}
                         </code>
                       </td>
@@ -324,20 +415,48 @@ const Suppliers = () => {
                             </>
                           ) : (
                             <>
-                              <FaTimes className="mr-1" />
-                              Неактивен
+                              <FaBan className="mr-1" />
+                              Деактивирован
                             </>
                           )}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <button
-                          onClick={() => viewRemains(supplier.name)}
-                          className="flex items-center bg-blue-100 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors font-medium"
-                        >
-                          <FaBoxes className="mr-2" />
-                          Остатки
-                        </button>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => viewRemains(supplier.name)}
+                            className="flex items-center bg-blue-100 text-blue-700 px-3 py-2 rounded-lg hover:bg-blue-200 transition-colors font-medium"
+                          >
+                            <FaBoxes className="mr-1" />
+                            Остатки
+                          </button>
+
+                          <button
+                            onClick={() => handleEdit(supplier)}
+                            className="flex items-center bg-green-100 text-green-700 px-3 py-2 rounded-lg hover:bg-green-200 transition-colors font-medium"
+                          >
+                            <FaEdit className="mr-1" />
+                            Изменить
+                          </button>
+
+                          {supplier.isActive ? (
+                            <button
+                              onClick={() => handleDeactivate(supplier._id)}
+                              className="flex items-center bg-red-100 text-red-700 px-3 py-2 rounded-lg hover:bg-red-200 transition-colors font-medium"
+                            >
+                              <FaBan className="mr-1" />
+                              Деактивировать
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleActivate(supplier._id)}
+                              className="flex items-center bg-green-100 text-green-700 px-3 py-2 rounded-lg hover:bg-green-200 transition-colors font-medium"
+                            >
+                              <FaPlay className="mr-1" />
+                              Активировать
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -348,11 +467,10 @@ const Suppliers = () => {
         </div>
       )}
 
-      {/* Enhanced Remains Modal */}
+      {/* Enhanced Remains Modal - остается тот же */}
       {showRemains && (
         <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-4 mx-auto p-6 border-0 max-w-7xl shadow-2xl rounded-2xl bg-white m-4">
-            {/* Modal Header */}
             <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
               <div className="flex items-center">
                 <div className="h-12 w-12 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 flex items-center justify-center mr-4">
@@ -476,7 +594,6 @@ const Suppliers = () => {
                         key={productIndex}
                         className="bg-gray-50 rounded-xl p-6 hover:bg-gray-100 transition-colors"
                       >
-                        {/* Product Header */}
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex-1">
                             <div className="flex items-start">
@@ -528,7 +645,6 @@ const Suppliers = () => {
                           </div>
                         </div>
 
-                        {/* Additional Info */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                           {[...product.series].length > 0 && (
                             <div className="bg-white rounded-lg p-3">
@@ -565,7 +681,6 @@ const Suppliers = () => {
                           </div>
                         </div>
 
-                        {/* Branch Details */}
                         <div>
                           <h5 className="font-semibold text-gray-900 mb-3 flex items-center">
                             <FaMapMarkerAlt className="mr-2 text-gray-600" />
@@ -621,7 +736,6 @@ const Suppliers = () => {
               )}
             </div>
 
-            {/* Modal Footer */}
             <div className="mt-6 pt-4 border-t border-gray-200">
               <div className="flex justify-between items-center">
                 <div className="text-sm text-gray-500">
@@ -720,6 +834,100 @@ const Suppliers = () => {
                 >
                   <FaPlus className="mr-2 inline" />
                   Добавить
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Supplier Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-6 border-0 w-96 shadow-2xl rounded-2xl bg-white">
+            <div className="flex items-center mb-6">
+              <div className="h-10 w-10 rounded-full bg-gradient-to-r from-green-500 to-green-600 flex items-center justify-center mr-3">
+                <FaEdit className="text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">
+                Изменить поставщика
+              </h3>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <FaBuilding className="inline mr-2" />
+                  Название компании
+                </label>
+                <input
+                  type="text"
+                  placeholder="Введите название"
+                  value={editFormData.name}
+                  onChange={(e) =>
+                    setEditFormData({ ...editFormData, name: e.target.value })
+                  }
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  👤 Логин
+                </label>
+                <input
+                  type="text"
+                  placeholder="Логин для входа"
+                  value={editFormData.username}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      username: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  🔐 Пароль
+                </label>
+                <input
+                  type="password"
+                  placeholder="Введите пароль"
+                  value={editFormData.password}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      password: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingSupplier(null);
+                    setEditFormData({ name: "", username: "", password: "" });
+                  }}
+                  className="px-6 py-3 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-green-600 to-green-700 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-lg"
+                >
+                  <FaEdit className="mr-2 inline" />
+                  Сохранить
                 </button>
               </div>
             </form>
