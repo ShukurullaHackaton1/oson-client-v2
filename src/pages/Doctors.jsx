@@ -38,6 +38,14 @@ import {
   FaCheckCircle,
   FaClock,
   FaEdit,
+  FaBan,
+  FaPlay,
+  FaEraser,
+  FaSearch,
+  FaFilter,
+  FaFileExport,
+  FaChartBar,
+  FaExclamationCircle,
 } from "react-icons/fa";
 import toast from "react-hot-toast";
 import api from "../services/api";
@@ -59,10 +67,22 @@ const Doctors = () => {
   const [showSales, setShowSales] = useState(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [showMessagesHistory, setShowMessagesHistory] = useState(null);
+  const [showActivationModal, setShowActivationModal] = useState(false);
+  const [activatingDoctor, setActivatingDoctor] = useState(null);
+  const [activationMonths, setActivationMonths] = useState(1);
   const [sales, setSales] = useState([]);
   const [salesLoading, setSalesLoading] = useState(false);
   const [showPassword, setShowPassword] = useState({});
   const [activeTab, setActiveTab] = useState("doctors");
+  const [salesStats, setSalesStats] = useState(null);
+
+  // Фильтры для продаж
+  const [salesFilter, setSalesFilter] = useState({
+    dateFrom: "",
+    dateTo: "",
+    searchProduct: "",
+    groupByProduct: false,
+  });
 
   // Message modal state
   const [selectedDoctors, setSelectedDoctors] = useState([]);
@@ -98,7 +118,6 @@ const Doctors = () => {
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
 
-    // Validation
     if (
       !formData.name ||
       !formData.profession ||
@@ -129,7 +148,6 @@ const Doctors = () => {
   const handleEditSubmit = async (e) => {
     if (e) e.preventDefault();
 
-    // Validation
     if (
       !editFormData.name ||
       !editFormData.profession ||
@@ -142,7 +160,9 @@ const Doctors = () => {
     }
 
     try {
-      await dispatch(updateDoctor({ id: editingDoctor._id, data: editFormData })).unwrap();
+      await dispatch(
+        updateDoctor({ id: editingDoctor._id, data: editFormData })
+      ).unwrap();
       setShowEditModal(false);
       setEditingDoctor(null);
       setEditFormData({
@@ -170,6 +190,79 @@ const Doctors = () => {
     setShowEditModal(true);
   };
 
+  // YANGI: Deaktivatsiya
+  const handleDeactivate = async (id) => {
+    if (
+      window.confirm(
+        "Деактивировать врача? Он не сможет войти в систему и его чат будет очищен."
+      )
+    ) {
+      try {
+        await api.put(`/doctors/${id}/deactivate`);
+        await dispatch(fetchDoctors());
+        toast.success("Врач деактивирован");
+      } catch (error) {
+        toast.error("Ошибка деактивации");
+      }
+    }
+  };
+
+  // YANGI: Aktivatsiya modal ochish
+  const handleActivate = (doctor) => {
+    setActivatingDoctor(doctor);
+    setShowActivationModal(true);
+  };
+
+  // YANGI: Aktivatsiya tasdiqlash
+  const confirmActivation = async () => {
+    try {
+      await api.put(`/doctors/${activatingDoctor._id}/activate`, {
+        months: activationMonths,
+      });
+
+      await dispatch(fetchDoctors());
+      setShowActivationModal(false);
+      setActivatingDoctor(null);
+      setActivationMonths(1);
+
+      toast.success(
+        activationMonths > 0
+          ? `Врач активирован на ${activationMonths} месяцев`
+          : "Врач активирован"
+      );
+    } catch (error) {
+      toast.error("Ошибка активации");
+    }
+  };
+
+  // YANGI: Doktor chatini tozalash
+  const clearDoctorChat = async (doctorId) => {
+    if (window.confirm("Очистить чат этого врача в телеграм боте?")) {
+      try {
+        await api.delete(`/doctors/${doctorId}/clear-chat`);
+        toast.success("Чат врача очищен");
+      } catch (error) {
+        toast.error("Ошибка очистки чата");
+      }
+    }
+  };
+
+  // YANGI: Barcha doktor chatlarini tozalash
+  const clearAllDoctorChats = async () => {
+    if (
+      window.confirm(
+        "Очистить ВСЕ чаты врачей в телеграм боте? Это действие необратимо!"
+      )
+    ) {
+      try {
+        const response = await api.post("/doctors/clear-all-chats");
+        toast.success(response.data.message);
+      } catch (error) {
+        toast.error("Ошибка очистки чатов");
+      }
+    }
+  };
+
   const handleDelete = async (id) => {
     if (window.confirm("Удалить врача?")) {
       try {
@@ -181,16 +274,77 @@ const Doctors = () => {
     }
   };
 
+  // YANGI: Filter bilan sales olish
   const viewSales = async (doctor) => {
     setSalesLoading(true);
+    setShowSales(doctor);
+    setSalesStats(null);
+
     try {
-      const response = await api.get(`/doctors/${doctor._id}/sales`);
-      setSales(response.data.data);
-      setShowSales(doctor);
+      // Filterlarga qarab so'rov yuborish
+      const params = new URLSearchParams();
+      if (salesFilter.dateFrom) params.append("dateFrom", salesFilter.dateFrom);
+      if (salesFilter.dateTo) params.append("dateTo", salesFilter.dateTo);
+      if (salesFilter.searchProduct)
+        params.append("searchProduct", salesFilter.searchProduct);
+      if (salesFilter.groupByProduct) params.append("groupByProduct", "true");
+
+      const response = await api.get(`/doctors/${doctor._id}/sales?${params}`);
+
+      if (response.data.data.grouped) {
+        // Gruppalangan ma'lumotlar
+        setSalesStats(response.data.data);
+        setSales([]);
+      } else {
+        // Oddiy ro'yxat
+        setSales(response.data.data);
+
+        // Statistika olish
+        if (
+          salesFilter.dateFrom ||
+          salesFilter.dateTo ||
+          salesFilter.searchProduct
+        ) {
+          const statsResponse = await api.get(
+            `/doctors/${doctor._id}/sales-stats?${params}`
+          );
+          setSalesStats(statsResponse.data.data);
+        }
+      }
     } catch (error) {
       toast.error("Ошибка загрузки продаж");
     } finally {
       setSalesLoading(false);
+    }
+  };
+
+  // YANGI: Export qilish
+  const exportSalesReport = async () => {
+    if (!showSales) return;
+
+    try {
+      const params = new URLSearchParams();
+      if (salesFilter.dateFrom) params.append("dateFrom", salesFilter.dateFrom);
+      if (salesFilter.dateTo) params.append("dateTo", salesFilter.dateTo);
+      if (salesFilter.searchProduct)
+        params.append("searchProduct", salesFilter.searchProduct);
+      params.append("format", "csv");
+
+      const response = await api.get(
+        `/doctors/${showSales._id}/export-sales?${params}`
+      );
+
+      // CSV faylni yuklab olish
+      const blob = new Blob([response.data], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `sales_${showSales.name}_${new Date().toISOString()}.csv`;
+      a.click();
+
+      toast.success("Отчет экспортирован");
+    } catch (error) {
+      toast.error("Ошибка экспорта");
     }
   };
 
@@ -199,6 +353,51 @@ const Doctors = () => {
       ...prev,
       [doctorId]: !prev[doctorId],
     }));
+  };
+
+  // YANGI: Aktivatsiya statusini aniqlash
+  const getActivationStatus = (doctor) => {
+    if (!doctor.isActive)
+      return {
+        status: "inactive",
+        text: "Неактивен",
+        color: "text-red-600",
+        bg: "bg-red-100",
+      };
+
+    if (!doctor.activeUntil)
+      return {
+        status: "active",
+        text: "Активен",
+        color: "text-green-600",
+        bg: "bg-green-100",
+      };
+
+    const now = new Date();
+    const activeUntil = new Date(doctor.activeUntil);
+    const daysLeft = Math.ceil((activeUntil - now) / (1000 * 60 * 60 * 24));
+
+    if (daysLeft <= 0)
+      return {
+        status: "expired",
+        text: "Истек",
+        color: "text-red-600",
+        bg: "bg-red-100",
+      };
+    if (daysLeft <= 7)
+      return {
+        status: "expiring",
+        text: `${daysLeft} дн.`,
+        color: "text-orange-600",
+        bg: "bg-orange-100",
+      };
+
+    return {
+      status: "active",
+      text: `${daysLeft} дн.`,
+      color: "text-green-600",
+      bg: "bg-green-100",
+    };
   };
 
   // Message functions
@@ -253,7 +452,6 @@ const Doctors = () => {
       setSelectedDoctors([]);
       setSelectAll(false);
 
-      // Messages historyni yangilash
       if (activeTab === "messages") {
         dispatch(fetchMessages());
       }
@@ -302,6 +500,13 @@ const Doctors = () => {
           </p>
         </div>
         <div className="flex space-x-3">
+          <button
+            onClick={clearAllDoctorChats}
+            className="flex items-center bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 transition-all"
+          >
+            <FaEraser className="mr-2" />
+            Очистить все чаты
+          </button>
           <button
             onClick={openMessageModal}
             className="flex items-center bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-lg hover:shadow-xl"
@@ -390,98 +595,145 @@ const Doctors = () => {
                         Код
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Статус
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Действия
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {doctors.map((doctor, index) => (
-                      <tr
-                        key={doctor._id}
-                        className={`hover:bg-gray-50 transition-colors ${
-                          index % 2 === 0 ? "bg-white" : "bg-gray-25"
-                        }`}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10">
-                              <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 flex items-center justify-center">
-                                <FaUser className="text-white text-sm" />
+                    {doctors.map((doctor, index) => {
+                      const activationStatus = getActivationStatus(doctor);
+                      return (
+                        <tr
+                          key={doctor._id}
+                          className={`hover:bg-gray-50 transition-colors ${
+                            index % 2 === 0 ? "bg-white" : "bg-gray-25"
+                          }`}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-10 w-10">
+                                <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 flex items-center justify-center">
+                                  <FaUser className="text-white text-sm" />
+                                </div>
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-sm font-bold text-gray-900">
+                                  {doctor.name}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  ID: {doctor._id.slice(-6)}
+                                </div>
                               </div>
                             </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-bold text-gray-900">
-                                {doctor.name}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                ID: {doctor._id.slice(-6)}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex px-3 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
-                            {doctor.profession}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          <code className="bg-gray-100 px-2 py-1 rounded">
-                            {doctor.login}
-                          </code>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <code className="bg-gray-100 px-2 py-1 rounded mr-2 text-sm">
-                              {showPassword[doctor._id]
-                                ? doctor.password
-                                : "••••••••"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="inline-flex px-3 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
+                              {doctor.profession}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            <code className="bg-gray-100 px-2 py-1 rounded">
+                              {doctor.login}
                             </code>
-                            <button
-                              onClick={() => togglePassword(doctor._id)}
-                              className="text-blue-500 hover:text-blue-700 transition-colors"
-                            >
-                              {showPassword[doctor._id] ? (
-                                <FaEyeSlash />
-                              ) : (
-                                <FaEye />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <code className="bg-gray-100 px-2 py-1 rounded mr-2 text-sm">
+                                {showPassword[doctor._id]
+                                  ? doctor.password
+                                  : "••••••••"}
+                              </code>
+                              <button
+                                onClick={() => togglePassword(doctor._id)}
+                                className="text-blue-500 hover:text-blue-700 transition-colors"
+                              >
+                                {showPassword[doctor._id] ? (
+                                  <FaEyeSlash />
+                                ) : (
+                                  <FaEye />
+                                )}
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="inline-flex px-3 py-1 text-xs font-bold bg-green-100 text-green-800 rounded-full">
+                              {doctor.code}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <span
+                                className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${activationStatus.bg} ${activationStatus.color}`}
+                              >
+                                {activationStatus.text}
+                              </span>
+                              {doctor.activeUntil && (
+                                <FaClock
+                                  className="ml-2 text-gray-400"
+                                  title={`До: ${new Date(
+                                    doctor.activeUntil
+                                  ).toLocaleDateString("ru-RU")}`}
+                                />
                               )}
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex px-3 py-1 text-xs font-bold bg-green-100 text-green-800 rounded-full">
-                            {doctor.code}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => viewSales(doctor)}
-                              className="flex items-center bg-blue-100 text-blue-700 px-3 py-2 rounded-lg hover:bg-blue-200 transition-colors"
-                            >
-                              <FaChartLine className="mr-1" />
-                              Продажи
-                            </button>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                onClick={() => viewSales(doctor)}
+                                className="flex items-center bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 transition-colors text-sm"
+                              >
+                                <FaChartLine className="mr-1" />
+                                Продажи
+                              </button>
 
-                            <button
-                              onClick={() => handleEdit(doctor)}
-                              className="flex items-center bg-green-100 text-green-700 px-3 py-2 rounded-lg hover:bg-green-200 transition-colors"
-                            >
-                              <FaEdit className="mr-1" />
-                              Изменить
-                            </button>
+                              <button
+                                onClick={() => handleEdit(doctor)}
+                                className="flex items-center bg-green-100 text-green-700 px-3 py-1 rounded hover:bg-green-200 transition-colors text-sm"
+                              >
+                                <FaEdit className="mr-1" />
+                                Изменить
+                              </button>
 
-                            <button
-                              onClick={() => handleDelete(doctor._id)}
-                              className="flex items-center bg-red-100 text-red-700 px-3 py-2 rounded-lg hover:bg-red-200 transition-colors"
-                            >
-                              <FaTrash className="mr-1" />
-                              Удалить
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                              {doctor.isActive ? (
+                                <button
+                                  onClick={() => handleDeactivate(doctor._id)}
+                                  className="flex items-center bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200 transition-colors text-sm"
+                                >
+                                  <FaBan className="mr-1" />
+                                  Деактивировать
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleActivate(doctor)}
+                                  className="flex items-center bg-green-100 text-green-700 px-3 py-1 rounded hover:bg-green-200 transition-colors text-sm"
+                                >
+                                  <FaPlay className="mr-1" />
+                                  Активировать
+                                </button>
+                              )}
+
+                              <button
+                                onClick={() => clearDoctorChat(doctor._id)}
+                                className="flex items-center bg-orange-100 text-orange-700 px-3 py-1 rounded hover:bg-orange-200 transition-colors text-sm"
+                              >
+                                <FaEraser />
+                              </button>
+
+                              <button
+                                onClick={() => handleDelete(doctor._id)}
+                                className="flex items-center bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200 transition-colors text-sm"
+                              >
+                                <FaTrash />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -546,7 +798,6 @@ const Doctors = () => {
                       </div>
                     </div>
 
-                    {/* Recipients */}
                     <div className="border-t pt-3">
                       <p className="text-sm text-gray-600 mb-2">
                         <FaUsers className="inline mr-1" />
@@ -581,7 +832,7 @@ const Doctors = () => {
         </div>
       )}
 
-      {/* Sales Modal remains the same */}
+      {/* Sales Modal with Filters */}
       {showSales && (
         <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-4 mx-auto p-6 border-0 max-w-6xl shadow-2xl rounded-2xl bg-white m-4">
@@ -600,18 +851,174 @@ const Doctors = () => {
                 </div>
               </div>
               <button
-                onClick={() => setShowSales(null)}
+                onClick={() => {
+                  setShowSales(null);
+                  setSalesStats(null);
+                  setSalesFilter({
+                    dateFrom: "",
+                    dateTo: "",
+                    searchProduct: "",
+                    groupByProduct: false,
+                  });
+                }}
                 className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full"
               >
                 <FaTimes className="text-xl" />
               </button>
             </div>
 
+            {/* Filters */}
+            <div className="bg-gray-50 p-4 rounded-lg mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <FaCalendarAlt className="inline mr-1" />
+                    Дата от
+                  </label>
+                  <input
+                    type="date"
+                    value={salesFilter.dateFrom}
+                    onChange={(e) =>
+                      setSalesFilter({
+                        ...salesFilter,
+                        dateFrom: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <FaCalendarAlt className="inline mr-1" />
+                    Дата до
+                  </label>
+                  <input
+                    type="date"
+                    value={salesFilter.dateTo}
+                    onChange={(e) =>
+                      setSalesFilter({ ...salesFilter, dateTo: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <FaSearch className="inline mr-1" />
+                    Поиск по продукту
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Название продукта..."
+                    value={salesFilter.searchProduct}
+                    onChange={(e) =>
+                      setSalesFilter({
+                        ...salesFilter,
+                        searchProduct: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="flex items-end gap-2">
+                  <button
+                    onClick={() =>
+                      setSalesFilter({
+                        ...salesFilter,
+                        groupByProduct: !salesFilter.groupByProduct,
+                      })
+                    }
+                    className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+                      salesFilter.groupByProduct
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}
+                  >
+                    <FaFilter className="mr-2" />
+                    Группировать
+                  </button>
+
+                 
+                </div>
+              </div>
+
+              <button
+                onClick={() => viewSales(showSales)}
+                className="mt-4 w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Применить фильтры
+              </button>
+            </div>
+
+            {/* Stats Summary */}
+            {salesStats && salesStats.grouped && (
+              <div className="bg-blue-50 p-4 rounded-lg mb-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-600">Период</p>
+                    <p className="text-lg font-bold text-gray-900">
+                      {salesStats.dateRange.from} - {salesStats.dateRange.to}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Всего чеков</p>
+                    <p className="text-xl font-bold text-blue-600">
+                      {salesStats.totalChecks}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Общая сумма</p>
+                    <p className="text-xl font-bold text-green-600">
+                      {(salesStats.totalAmount || 0).toLocaleString()} сум
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Всего продуктов</p>
+                    <p className="text-xl font-bold text-purple-600">
+                      {salesStats.totalQuantity}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Sales Table/List */}
             <div className="max-h-96 overflow-y-auto">
               {salesLoading ? (
                 <div className="flex justify-center items-center h-32">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                   <span className="ml-3 text-gray-600">Загрузка продаж...</span>
+                </div>
+              ) : salesStats && salesStats.grouped ? (
+                // Grouped display
+                <div className="space-y-2">
+                  {salesStats.products.map((product, index) => (
+                    <div
+                      key={index}
+                      className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h5 className="font-bold text-gray-900">
+                            {product.product}
+                          </h5>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Количество: {product.totalQuantity} шт
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-green-600 text-lg">
+                            {(product.totalAmount || 0).toLocaleString()} сум
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {product.sales.length} продаж
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : sales.length === 0 ? (
                 <div className="text-center py-12">
@@ -619,6 +1026,7 @@ const Doctors = () => {
                   <p className="text-gray-500 text-lg">Продажи не найдены</p>
                 </div>
               ) : (
+                // Regular display
                 <div className="space-y-4">
                   {groupSalesByCheck(sales).map((checkGroup, checkIndex) => (
                     <div key={checkIndex} className="bg-gray-50 rounded-xl p-5">
@@ -662,16 +1070,6 @@ const Doctors = () => {
                                     <h5 className="font-semibold text-gray-900 text-sm leading-tight">
                                       {item.product}
                                     </h5>
-                                    {item.manufacturer && (
-                                      <p className="text-xs text-gray-500 mt-1">
-                                        🏭 {item.manufacturer}
-                                      </p>
-                                    )}
-                                    {item.series && (
-                                      <p className="text-xs text-blue-600 mt-1">
-                                        📋 Серия: {item.series}
-                                      </p>
-                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -712,9 +1110,6 @@ const Doctors = () => {
           </div>
         </div>
       )}
-
-      {/* Message Modal and Messages History Modal remain the same */}
-      {/* ... (keeping all other existing modals) ... */}
 
       {/* Add Doctor Modal */}
       {showModal && (
@@ -877,7 +1272,10 @@ const Doctors = () => {
                     placeholder="Например: Кардиолог"
                     value={editFormData.profession}
                     onChange={(e) =>
-                      setEditFormData({ ...editFormData, profession: e.target.value })
+                      setEditFormData({
+                        ...editFormData,
+                        profession: e.target.value,
+                      })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
                     required
@@ -894,7 +1292,10 @@ const Doctors = () => {
                     placeholder="Логин для входа"
                     value={editFormData.login}
                     onChange={(e) =>
-                      setEditFormData({ ...editFormData, login: e.target.value })
+                      setEditFormData({
+                        ...editFormData,
+                        login: e.target.value,
+                      })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
                     required
@@ -911,7 +1312,10 @@ const Doctors = () => {
                     placeholder="Введите пароль"
                     value={editFormData.password}
                     onChange={(e) =>
-                      setEditFormData({ ...editFormData, password: e.target.value })
+                      setEditFormData({
+                        ...editFormData,
+                        password: e.target.value,
+                      })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
                     required
@@ -962,6 +1366,82 @@ const Doctors = () => {
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Activation Modal */}
+      {showActivationModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-6 border-0 w-96 shadow-2xl rounded-2xl bg-white">
+            <div className="flex items-center mb-6">
+              <div className="h-10 w-10 rounded-full bg-gradient-to-r from-green-500 to-green-600 flex items-center justify-center mr-3">
+                <FaPlay className="text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">
+                Активировать врача
+              </h3>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-gray-700">
+                <strong>Врач:</strong> {activatingDoctor?.name}
+              </p>
+              <p className="text-gray-600 text-sm">
+                {activatingDoctor?.profession}
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Период активации (месяцев)
+              </label>
+              <select
+                value={activationMonths}
+                onChange={(e) => setActivationMonths(Number(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option value={0}>Без ограничения</option>
+                <option value={1}>1 месяц</option>
+                <option value={2}>2 месяца</option>
+                <option value={3}>3 месяца</option>
+                <option value={6}>6 месяцев</option>
+                <option value={12}>12 месяцев</option>
+              </select>
+            </div>
+
+            {activationMonths > 0 && (
+              <div className="bg-blue-50 p-3 rounded-lg mb-6">
+                <p className="text-sm text-blue-800">
+                  <FaExclamationCircle className="inline mr-2" />
+                  Аккаунт будет активен до:{" "}
+                  <strong>
+                    {new Date(
+                      Date.now() + activationMonths * 30 * 24 * 60 * 60 * 1000
+                    ).toLocaleDateString("ru-RU")}
+                  </strong>
+                </p>
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowActivationModal(false);
+                  setActivatingDoctor(null);
+                  setActivationMonths(1);
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={confirmActivation}
+                className="px-4 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Активировать
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1027,7 +1507,7 @@ const Doctors = () => {
                 doctors.map((doctor) => (
                   <div
                     key={doctor._id}
-                    className={`flex items-center p-3 rounded-lg cursor-pointer transition-all ${
+                    className={`flex items-center p-3 rounded-lg cursor-pointer transition-all mb-2 ${
                       selectedDoctors.includes(doctor._id)
                         ? "bg-blue-100 border-2 border-blue-300"
                         : "bg-white border-2 border-gray-200 hover:border-blue-200"
@@ -1179,9 +1659,7 @@ const Doctors = () => {
               ) : doctorMessages.length === 0 ? (
                 <div className="text-center py-12">
                   <FaInbox className="mx-auto text-4xl text-gray-400 mb-4" />
-                  <p className="text-gray-500 text-lg">
-                    Сообщения не найдены
-                  </p>
+                  <p className="text-gray-500 text-lg">Сообщения не найдены</p>
                 </div>
               ) : (
                 <div className="space-y-4">

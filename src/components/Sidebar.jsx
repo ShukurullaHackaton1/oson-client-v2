@@ -14,7 +14,8 @@ const Sidebar = () => {
   return (
     <div className="bg-gradient-to-b relative from-blue-900 to-blue-800 w-64 min-h-screen shadow-xl">
       <div className="p-6">
-        <h2 className="text-xl font-bold flex items-center gap-2 text-white">
+        <h2 className="text-l font-bold flex items-center gap-2 text-white">
+          <img src={Logo} className="w-[70px] h-[70px]" alt="" />
           <span>Аптека Система</span>
         </h2>
         <p className="text-blue-200 text-sm mt-1">Управление данными</p>
