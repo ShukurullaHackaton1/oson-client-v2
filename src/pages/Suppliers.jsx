@@ -58,6 +58,22 @@ const Suppliers = () => {
     dispatch(fetchAvailableSuppliers());
   }, [dispatch]);
 
+  // YANGI: Miqdorni to'g'ri ko'rsatish uchun helper funktsiya
+  const formatQuantityDisplay = (item) => {
+    // Eski format uchun
+
+    return (
+      <ul>
+        {item.quantities.map((quantity) => (
+          <li>
+            {quantity.units !== 0 ? quantity.units + "уп" : ""}{" "}
+            {quantity.pieces !== 0 ? quantity.pieces + item.unit : ""}
+          </li>
+        ))}
+      </ul>
+    );
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -136,7 +152,7 @@ const Suppliers = () => {
         `/suppliers/${encodeURIComponent(supplierName)}/remains`
       );
 
-      // Группировка по продуктам и филиалам
+      // Gruppavka qilish (o'zgarmas)
       const groupedRemains = {};
       response.data.data.forEach((item) => {
         if (!groupedRemains[item.product]) {
@@ -150,11 +166,21 @@ const Suppliers = () => {
             series: new Set(),
             barcodes: new Set(),
             shelfLife: item.shelfLife,
+            // YANGI: quantities ma'lumotlarini saqlash
+            totalUnits: 0,
+            totalPieces: 0,
+            quantities: item.quantities,
           };
         }
 
         const productData = groupedRemains[item.product];
         productData.totalQuantity += item.quantity || 0;
+
+        // YANGI: quantities hisoblash
+        if (item.quantities && typeof item.quantities === "object") {
+          productData.totalUnits += item.quantities.units || 0;
+          productData.totalPieces += item.quantities.pieces || 0;
+        }
 
         if (item.series) productData.series.add(item.series);
         if (item.barcode) productData.barcodes.add(item.barcode);
@@ -166,10 +192,21 @@ const Suppliers = () => {
             locations: new Set(),
             buyPrice: item.buyPrice,
             salePrice: item.salePrice,
+            // YANGI: branch uchun quantities
+            units: 0,
+            pieces: 0,
           };
         }
 
         productData.branches[branchName].quantity += item.quantity || 0;
+
+        // YANGI: branch uchun quantities hisoblash
+        if (item.quantities && typeof item.quantities === "object") {
+          productData.branches[branchName].units += item.quantities.units || 0;
+          productData.branches[branchName].pieces +=
+            item.quantities.pieces || 0;
+        }
+
         if (item.location) {
           productData.branches[branchName].locations.add(item.location);
         }
@@ -467,7 +504,7 @@ const Suppliers = () => {
         </div>
       )}
 
-      {/* Enhanced Remains Modal - остается тот же */}
+      {/* Enhanced Remains Modal - faqat ko'rsatish o'zgargan */}
       {showRemains && (
         <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-4 mx-auto p-6 border-0 max-w-7xl shadow-2xl rounded-2xl bg-white m-4">
@@ -623,11 +660,9 @@ const Suppliers = () => {
                           </div>
 
                           <div className="text-right">
-                            <div
-                              className={`${stockStatus.color} font-bold text-xl`}
-                            >
-                              {product.totalQuantity.toLocaleString()}{" "}
-                              {product.unit || "шт"}
+                            {/* YANGI: quantities ko'rsatish */}
+                            <div className="font-bold text-xl">
+                              {formatQuantityDisplay(product)}
                             </div>
                             <p className="text-xs text-gray-500">
                               Общий остаток
@@ -697,18 +732,10 @@ const Suppliers = () => {
                                     <h6 className="font-semibold text-gray-900 text-sm">
                                       🏢 {branchName}
                                     </h6>
-                                    <span
-                                      className={`font-bold text-lg ${
-                                        branchData.quantity < 5
-                                          ? "text-red-600"
-                                          : branchData.quantity < 20
-                                          ? "text-orange-600"
-                                          : "text-green-600"
-                                      }`}
-                                    >
-                                      {branchData.quantity}{" "}
-                                      {product.unit || "шт"}
-                                    </span>
+                                    <div className="text-right">
+                                      {/* YANGI: branch uchun quantities ko'rsatish */}
+                                      {formatQuantityDisplay(product)}
+                                    </div>
                                   </div>
 
                                   {[...branchData.locations].length > 0 && (
