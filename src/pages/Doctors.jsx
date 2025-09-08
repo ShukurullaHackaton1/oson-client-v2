@@ -115,6 +115,46 @@ const Doctors = () => {
     }
   }, [activeTab, dispatch]);
 
+  // YANGI: Quantity ko'rsatish uchun helper funktsiya - vrachlar uchun
+  const formatQuantityDisplay = (item) => {
+    // Agar item.quantities mavjud bo'lsa va object bo'lsa (supplier format)
+    if (item.quantities && typeof item.quantities === "object") {
+      const units = item.quantities.units || 0;
+      const pieces = item.quantities.pieces || 0;
+
+      let result = "";
+      if (units > 0) result += `${units} упак.`;
+      if (pieces > 0) {
+        if (result) result += " ";
+        result += `${pieces} шт`;
+      }
+
+      return result || "0 шт";
+    }
+
+    // YANGI: Agar quantity oddiy raqam bo'lsa (sales items format)
+    if (typeof item.quantity === "number") {
+      const qty = item.quantity;
+
+      // Agar 1 dan kichik bo'lsa - штук ko'rsatish (0.2 -> 2 шт)
+      if (qty < 1 && qty > 0) {
+        const pieces = Math.round(qty * 10); // 0.2 * 10 = 2
+        return `${pieces} шт`;
+      }
+      // Agar 1 yoki undan katta bo'lsa - упаковка ko'rsatish
+      else if (qty >= 1) {
+        return `${qty} упак.`;
+      }
+      // Agar 0 bo'lsa
+      else {
+        return "0 шт";
+      }
+    }
+
+    // Default
+    return "0 шт";
+  };
+
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
 
@@ -469,7 +509,7 @@ const Doctors = () => {
     }
   };
 
-  // Группировка продаж по чекам
+  // YANGI: Группировка продаж по чекам с quantities
   const groupSalesByCheck = (salesData) => {
     const grouped = {};
     salesData.forEach((sale) => {
@@ -832,7 +872,7 @@ const Doctors = () => {
         </div>
       )}
 
-      {/* Sales Modal with Filters */}
+      {/* YANGI: Sales Modal with Filters - quantities bilan */}
       {showSales && (
         <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-4 mx-auto p-6 border-0 max-w-6xl shadow-2xl rounded-2xl bg-white m-4">
@@ -939,8 +979,6 @@ const Doctors = () => {
                     <FaFilter className="mr-2" />
                     Группировать
                   </button>
-
-                 
                 </div>
               </div>
 
@@ -1026,7 +1064,7 @@ const Doctors = () => {
                   <p className="text-gray-500 text-lg">Продажи не найдены</p>
                 </div>
               ) : (
-                // Regular display
+                // YANGI: Regular display with quantities
                 <div className="space-y-4">
                   {groupSalesByCheck(sales).map((checkGroup, checkIndex) => (
                     <div key={checkIndex} className="bg-gray-50 rounded-xl p-5">
@@ -1074,8 +1112,9 @@ const Doctors = () => {
                                 </div>
                               </div>
                               <div className="text-right flex-shrink-0 ml-4">
+                                {/* YANGI: Quantity formatlashtirish */}
                                 <div className="text-sm font-bold text-gray-900">
-                                  {item.quantity} шт
+                                  {formatQuantityDisplay(item)}
                                 </div>
                                 {item.soldAmount && (
                                   <div className="text-xs text-green-600 font-medium">
