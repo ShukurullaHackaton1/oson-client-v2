@@ -115,9 +115,37 @@ const Doctors = () => {
     }
   }, [activeTab, dispatch]);
 
-  // YANGI: Quantity ko'rsatish uchun helper funktsiya - vrachlar uchun
+  // ИСПРАВЛЕНО: Quantity ko'rsatish uchun helper funktsiya - to'g'ri hisoblash
   const formatQuantityDisplay = (item) => {
-    // Agar item.quantities mavjud bo'lsa va object bo'lsa (supplier format)
+    // Sales items uchun - quantity raqam sifatida keladi
+    if (typeof item.quantity === "number" && item.pieceCount) {
+      const qty = item.quantity;
+      const pc = item.pieceCount;
+
+      // Упаковка сони (butun qism)
+      const packages = Math.floor(qty);
+
+      // Штук сони (qoldiq qism * pieceCount)
+      const remainder = qty - packages;
+      let pieces = Math.round(remainder * pc);
+
+      // Agar pieces pieceCount dan katta yoki teng bo'lsa, normalizatsiya qilish
+      if (pieces >= pc) {
+        pieces = 0;
+        packages += 1;
+      }
+
+      let result = "";
+      if (packages > 0) result += `${packages} упак.`;
+      if (pieces > 0) {
+        if (result) result += " ";
+        result += `${pieces} шт`;
+      }
+
+      return result || "0 шт";
+    }
+
+    // Supplier format uchun (remains) - quantities obyekt sifatida
     if (item.quantities && typeof item.quantities === "object") {
       const units = item.quantities.units || 0;
       const pieces = item.quantities.pieces || 0;
@@ -130,25 +158,6 @@ const Doctors = () => {
       }
 
       return result || "0 шт";
-    }
-
-    // YANGI: Agar quantity oddiy raqam bo'lsa (sales items format)
-    if (typeof item.quantity === "number") {
-      const qty = item.quantity;
-
-      // Agar 1 dan kichik bo'lsa - штук ko'rsatish (0.2 -> 2 шт)
-      if (qty < 1 && qty > 0) {
-        const pieces = Math.round(qty * 10); // 0.2 * 10 = 2
-        return `${pieces} шт`;
-      }
-      // Agar 1 yoki undan katta bo'lsa - упаковка ko'rsatish
-      else if (qty >= 1) {
-        return `${qty} упак.`;
-      }
-      // Agar 0 bo'lsa
-      else {
-        return "0 шт";
-      }
     }
 
     // Default
@@ -509,7 +518,7 @@ const Doctors = () => {
     }
   };
 
-  // YANGI: Группировка продаж по чекам с quantities
+  // ИСПРАВЛЕНО: Группировка продаж по чекам с правильным quantity
   const groupSalesByCheck = (salesData) => {
     const grouped = {};
     salesData.forEach((sale) => {
@@ -872,7 +881,7 @@ const Doctors = () => {
         </div>
       )}
 
-      {/* YANGI: Sales Modal with Filters - quantities bilan */}
+      {/* ИСПРАВЛЕНО: Sales Modal with Filters - to'g'ri quantity ko'rsatish bilan */}
       {showSales && (
         <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-4 mx-auto p-6 border-0 max-w-6xl shadow-2xl rounded-2xl bg-white m-4">
@@ -1064,7 +1073,7 @@ const Doctors = () => {
                   <p className="text-gray-500 text-lg">Продажи не найдены</p>
                 </div>
               ) : (
-                // YANGI: Regular display with quantities
+                // ИСПРАВЛЕНО: Regular display with to'g'ri quantity
                 <div className="space-y-4">
                   {groupSalesByCheck(sales).map((checkGroup, checkIndex) => (
                     <div key={checkIndex} className="bg-gray-50 rounded-xl p-5">
@@ -1112,7 +1121,7 @@ const Doctors = () => {
                                 </div>
                               </div>
                               <div className="text-right flex-shrink-0 ml-4">
-                                {/* YANGI: Quantity formatlashtirish */}
+                                {/* ИСПРАВЛЕНО: To'g'ri quantity formatlashtirish */}
                                 <div className="text-sm font-bold text-gray-900">
                                   {formatQuantityDisplay(item)}
                                 </div>
