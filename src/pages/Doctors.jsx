@@ -49,6 +49,7 @@ import {
 } from "react-icons/fa";
 import toast from "react-hot-toast";
 import api from "../services/api";
+import moment from "moment";
 
 const Doctors = () => {
   const dispatch = useDispatch();
@@ -1086,9 +1087,7 @@ const Doctors = () => {
                             </h4>
                             <p className="text-sm text-gray-600 flex items-center">
                               <FaCalendarAlt className="mr-2" />
-                              {new Date(checkGroup.date).toLocaleString(
-                                "ru-RU"
-                              )}
+                              {moment(checkGroup.date).format("DD.MM.YYYY")}
                             </p>
                           </div>
                         </div>
